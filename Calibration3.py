@@ -5,12 +5,14 @@
 # - OpenCV-Python tutorial for calibration: http://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_calib3d/py_calibration/py_calibration.html
 #   - Variable names were changed for clarity
 
-import numpy
+import numpy as np
 import cv2
 import pickle
 import glob
 
 # Create arrays you'll use to store object points and image points from all images processed
+
+
 objpoints = []  # 3D point in real world space where chess squares are
 imgpoints = []  # 2D point in image plane, determined by CV2
 
@@ -19,21 +21,14 @@ CHESSBOARD_CORNERS_ROWCOUNT = 9
 CHESSBOARD_CORNERS_COLCOUNT = 6
 
 # Theoretical object points for the chessboard we're calibrating against,
-# These will come out like:
-#     (0, 0, 0), (1, 0, 0), ...,[[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0], [5, 0, 0], [6, 0, 0], [7, 0, 0], [8, 0, 0],
-#              [0, 1, 0], [1, 1, 0], [2, 1, 0], [3, 1, 0], [4, 1, 0], [5, 1, 0], [6, 1, 0], [7, 1, 0], [8, 1, 0],
-#              [0, 2, 0], [1, 2, 0], [2, 2, 0], [3, 2, 0], [4, 2, 0], [5, 2, 0], [6, 2, 0], [7, 2, 0], [8, 2, 0],
-#              [0, 3, 0], [1, 3, 0], [2, 3, 0], [3, 3, 0], [4, 3, 0], [5, 3, 0], [6, 3, 0], [7, 3, 0], [8, 3, 0],
-#              [0, 4, 0], [1, 4, 0], [2, 4, 0], [3, 4, 0], [4, 4, 0], [5, 4, 0], [6, 4, 0], [7, 4, 0], [8, 4, 0],
-#              [0, 5, 0], [1, 5, 0], [2, 5, 0], [3, 5, 0], [4, 5, 0], [5, 5, 0], [6, 5, 0], [7, 5, 0], [8, 5, 0],
-#              [0, 6, 0], [1, 6, 0], [2, 6, 0], [3, 6, 0], [4, 6, 0], [5, 6, 0], [6, 6, 0], [7, 6, 0], [8, 6, 0]]
+#
 #     (CHESSBOARD_CORNERS_ROWCOUNT-1, CHESSBOARD_CORNERS_COLCOUNT-1, 0)
 # Note that the Z value for all stays at 0, as this is a printed out 2D image
 # And also that the max point is -1 of the max because we're zero-indexing
 # The following line generates all the tuples needed at (0, 0, 0)
-objp = numpy.zeros((CHESSBOARD_CORNERS_ROWCOUNT * CHESSBOARD_CORNERS_COLCOUNT, 3), numpy.float32)
+objp = np.zeros((CHESSBOARD_CORNERS_ROWCOUNT * CHESSBOARD_CORNERS_COLCOUNT, 3), np.float32)
 # The following line fills the tuples just generated with their values (0, 0, 0), (1, 0, 0), ...
-objp[:, :2] = numpy.mgrid[0:CHESSBOARD_CORNERS_ROWCOUNT, 0:CHESSBOARD_CORNERS_COLCOUNT].T.reshape(-1, 2)
+objp[:, :2] = np.mgrid[0:CHESSBOARD_CORNERS_ROWCOUNT, 0:CHESSBOARD_CORNERS_COLCOUNT].T.reshape(-1, 2)
 
 # Need a set of images or a video taken with the camera you want to calibrate
 # I'm using a set of images taken with the camera with the naming convention:
@@ -120,6 +115,16 @@ print(distCoeffs)
 f = open('calibration.pckl', 'wb')
 pickle.dump((cameraMatrix, distCoeffs, rvecs, tvecs), f)
 f.close()
+cm = open('cameraMatrix.txt','wb')
+dq = open('distortionCoefficients.txt','wb')
+import numpy as np
+np.savetxt('cameraMatrix.txt',  np.array(cameraMatrix),  fmt='%d')
+np.savetxt('distortionCoefficients.txt', np.array(distCoeffs), fmt='%d')
+cm.close()
+dq.close()
+
+import pandas as pd
+cam_df = pd.DataFrame({'Camera Matrix': cameraMatrix, 'Distortion Coefficients': distCoeffs}, index=)
 
 # Print to console our success
 print('Calibration successful. Calibration file used: {}'.format('calibration.pckl'))

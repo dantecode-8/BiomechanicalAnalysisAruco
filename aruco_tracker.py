@@ -117,7 +117,7 @@ print(cameraMatrix)
 print(distCoeffs)
 
 ###------------------ ARUCO TRACKER ---------------------------
-cap = cv2.VideoCapture('watsapvideo1mark.mp4')
+cap = cv2.VideoCapture('watsapvideo3markers.mp4')
 while (True):
     ret, frame = cap.read()
 
@@ -136,27 +136,8 @@ while (True):
                                                             parameters=parameters,
                                                             cameraMatrix=matrix_coefficients,
                                                             distCoeff=distortion_coefficients)
-    for (i, b) in enumerate(corners):
-        print(i, b, ids[i])
-        print("B0", b[0])
-        print("B00", b[0][0])
-        print("B01", b[0][1])
-        print("B02", b[0][2])
-        c1 = (b[0][0][0], b[0][0][1])
-        c2 = (b[0][1][0], b[0][1][1])
-        c3 = (b[0][2][0], b[0][2][1])
-        c4 = (b[0][3][0], b[0][3][1])
-        print(c1)
-        cv2.line(frame, c1, c2, (0, 0, 255), 3)
-        cv2.line(frame, c2, c3, (0, 255, 0), 3)
-        cv2.line(frame, c3, c4, (0, 0, 255), 3)
-        cv2.line(frame, c4, c1, (0, 0, 255), 3)
-        x = int((c1[0] + c2[0] + c3[0] + c4[0]) / 4)
-        y = int((c1[1] + c2[1] + c3[1] + c4[1]) / 4)
-        frame = cv2.putText(frame, str(ids[i]), (x, y), cv2.FONT_HERSHEY_SIMPLEX,
-                            1, (0, 0, 255), 2, cv2.LINE_AA)
 
-        # font for displaying text (below)
+    # font for displaying text (below)
     font = cv2.FONT_HERSHEY_SIMPLEX
 
     # check if the ids list is not empty
@@ -165,38 +146,41 @@ while (True):
 
         # estimate pose of each marker and return the values
         # rvet and tvec-different from camera coefficients
-        rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners, 0.05, matrix_coefficients, distortion_coefficients)
-        (rvec - tvec).any()  # get rid of that nasty numpy value array error
+        rvec, tvec ,_ = aruco.estimatePoseSingleMarkers(corners, 0.05, matrix_coefficients, distortion_coefficients)
+        (rvec-tvec).any() # get rid of that nasty numpy value array error
+
 
         for i in range(0, ids.size):
             # draw axis for the aruco markers
             # Code to store Data in Data frame using pandas
-            # marker_info = pd.DataFrame({'id': [id(i)], 'corners': [corners[i][0]]}, columns=['id', 'corners'])
+            #marker_info = pd.DataFrame({'id': [id(i)], 'corners': [corners[i][0]]}, columns=['id', 'corners'])
             aruco.drawAxis(frame, matrix_coefficients, distortion_coefficients, rvec[i], tvec[i], 0.04)
 
         # draw a square around the markers
         aruco.drawDetectedMarkers(frame, corners)
 
+
+
+
         # code to show ids of the marker found
         strg = ''
         for i in range(0, ids.size):
-            strg += str(ids[i][0]) + ', '
+            strg += str(ids[i][0])+', '
 
-        cv2.putText(frame, "Id: " + strg, (0, 64), font, 1, (0, 0, 255), 2, cv2.LINE_AA)
+        cv2.putText(frame, "Id: " + strg, (0,64), font, 1, (0,0,255),2,cv2.LINE_AA)
 
 
     else:
         # code to show 'No Ids' when no markers are found
-        cv2.putText(frame, "No Ids", (0, 64), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
+        cv2.putText(frame, "No Ids", (0,64), font, 1, (0,255,0),2,cv2.LINE_AA)
 
     # display the resulting frame
-    cv2.imshow('frame', frame)
+    cv2.imshow('frame',frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
 # When everything done, release the capture
 cap.release()
 cv2.destroyAllWindows()
-
 
 
