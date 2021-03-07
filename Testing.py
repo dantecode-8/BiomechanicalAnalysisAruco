@@ -13,6 +13,7 @@ import pickle
 import glob
 import cv2.aruco as aruco
 import pandas as pd
+import cv2
 
 # Create arrays you'll use to store object points and image points from all images processed
 
@@ -115,11 +116,45 @@ distortion_coefficients = distCoeffs
 # Print matrix and distortion coefficient to the console
 print(cameraMatrix)
 print(distCoeffs)
-
+markersize = 100
 ###------------------ ARUCO TRACKER ---------------------------
-cap = cv2.VideoCapture('watsapvideo1mark.mp4')
+# rotate a markers corners by rvec and translate by tvec if given
+# input is the size of a marker.
+# In the markerworld the 4 markercorners are at (x,y) = (+- markersize/2, +- markersize/2)
+# returns the rotated and translated corners and the rotation matrix
+def rotate_marker_corners(rvec, markersize, tvec = None):
+
+    mhalf = markersize / 2.0
+    # convert rot vector to rot matrix both do: markerworld -> cam-world
+    mrv, jacobian = cv2.Rodrigues(rvec)
+
+    #in markerworld the corners are all in the xy-plane so z is zero at first
+    X = mhalf * mrv[:,0] #rotate the x = mhalf
+    Y = mhalf * mrv[:,1] #rotate the y = mhalf
+    minusX = X * (-1)
+    minusY = Y * (-1)
+
+    # calculate 4 corners of the marker in camworld. corners are enumerated clockwise
+    markercorners = []
+    markercorners.append(np.add(minusX, Y)) #was upper left in markerworld
+    markercorners.append(np.add(X, Y)) #was upper right in markerworld
+    markercorners.append(np.add( X, minusY)) #was lower right in markerworld
+    markercorners.append(np.add(minusX, minusY)) #was lower left in markerworld
+    # if tvec given, move all by tvec
+    if tvec is not None:
+        C = tvec #center of marker in camworld
+        for i, mc in enumerate(markercorners):
+            makercorners[i] = np.add(C,mc) #add tvec to each corner
+    #print('Vec X, Y, C, dot(X,Y)', X,Y,C, np.dot(X,Y)) # just for debug
+    markercorners = np.array(markercorners,dtype=np.float32) # type needed when used as input to cv2
+    return markercorners, mrv
+###########
+countframe = 0
+frame_df = pd.DataFrame(columns = ['Frame_NUMBER','markerID','Sampling_time','Top_left_corner','Top_right','Bottom_right','Bottom_left']
+cap = cv2.VideoCapture('ArucoBoard1.mp4')
 while (True):
     ret, frame = cap.read()
+    countframe +=1
 
     # operations on the frame
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -136,17 +171,32 @@ while (True):
                                                             parameters=parameters,
                                                             cameraMatrix=matrix_coefficients,
                                                             distCoeff=distortion_coefficients)
+    rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners, 0.05, matrix_coefficients, distortion_coefficients)
+    #rvec = np.transpose(rvec)
+    #recabcorners, mrv = rotate_marker_corners(rvec,markersize,tvec)
+
     for (i, b) in enumerate(corners):
         print(i, b, ids[i])
         print("B0", b[0])
         print("B00", b[0][0])
         print("B01", b[0][1])
         print("B02", b[0][2])
+        print(countframe)
         c1 = (b[0][0][0], b[0][0][1])
         c2 = (b[0][1][0], b[0][1][1])
         c3 = (b[0][2][0], b[0][2][1])
         c4 = (b[0][3][0], b[0][3][1])
+        x_sum = corners[0][0][0][0] + corners[0][0][1][0] + corners[0][0][2][0] + corners[0][0][3][0]
+        y_sum = corners[0][0][0][1] + corners[0][0][1][1] + corners[0][0][2][1] + corners[0][0][3][1]
+
+        x_centerPixel = x_sum * .25
+        y_centerPixel = y_sum * .25
+        new_row = {'Frame_NUMBER':countframe ,'markerID': ids[i],'Sampling_time': 0 ,'Top_left_corner': c1,'Top_right': c2,'Bottom_right': c3,'Bottom_left':c4}
+        # append row to the dataframe
+        frame_df = frame_df.append(new_row, ignore_index=False)
         print(c1)
+        print(x_centerPixel)
+        print(y_centerPixel)
         cv2.line(frame, c1, c2, (0, 0, 255), 3)
         cv2.line(frame, c2, c3, (0, 255, 0), 3)
         cv2.line(frame, c3, c4, (0, 0, 255), 3)
@@ -165,8 +215,8 @@ while (True):
 
         # estimate pose of each marker and return the values
         # rvet and tvec-different from camera coefficients
-        rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners, 0.05, matrix_coefficients, distortion_coefficients)
         (rvec - tvec).any()  # get rid of that nasty numpy value array error
+
 
         for i in range(0, ids.size):
             # draw axis for the aruco markers
@@ -192,8 +242,8 @@ while (True):
     # display the resulting frame
     cv2.imshow('frame', frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
+        pass
+frame_df.to_clipboard(sep='\t')
 # When everything done, release the capture
 cap.release()
 cv2.destroyAllWindows()
