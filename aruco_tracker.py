@@ -116,17 +116,29 @@ distortion_coefficients = distCoeffs
 print(cameraMatrix)
 print(distCoeffs)
 
-###------------------ ARUCO TRACKER ---------------------------
+###------------------ ARUCO TRACKER ---------------------------###
+# rotate a markers corners by rvec and translate by tvec if given
+# input is the size of a marker.
+# In the markerworld the 4 markercorners are at (x,y) = (+- markersize/2, +- markersize/2)
+# returns the rotated and translated corners and the rotation matrix
+def inversePerspective(rvec, tvec):
+    R, _ = cv2.Rodrigues(rvec)
+    R = np.matrix(R).T
+    invTvec = np.dot(R, np.matrix(-tvec))
+    invRvec, _ = cv2.Rodrigues(R)
+    return invRvec, invTvec
+
 ###########
 countframe = 0
-frame_df = pd.DataFrame(columns = ['Frame_NUMBER','markerID','Sampling_time','Top_left_corner','Top_right','Bottom_right','Bottom_left'])
-cap = cv2.VideoCapture('.mp4')
-
-
-
-while (True) :
+frame_df = pd.DataFrame(
+    columns=['Frame_NUMBER', 'markerID', 'Sampling_time', 'Top_left_corner', 'Top_right', 'Bottom_right',
+             'Bottom_left', 'x_center','y_center','marker_center','translation_vector','rotation_vector','inverse_translation_vector','inverse_rotation_vector'])
+cap = cv2.VideoCapture('ubicarcorner0.mp4')
+while (True):
     ret, frame = cap.read()
-    countframe +=1
+    if not ret:
+     break
+    countframe += 1
 
     # operations on the frame
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -143,32 +155,22 @@ while (True) :
                                                             parameters=parameters,
                                                             cameraMatrix=matrix_coefficients,
                                                             distCoeff=distortion_coefficients)
-    rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners, 0.05, matrix_coefficients, distortion_coefficients)
-    #rvec = np.transpose(rvec)
-    #recabcorners, mrv = rotate_marker_corners(rvec,markersize,tvec)
-
+    rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners, 0.1, matrix_coefficients, distortion_coefficients)
     for (i, b) in enumerate(corners):
         print(i, b, ids[i])
-        print("B0", b[0])
-        print("B00", b[0][0])
-        print("B01", b[0][1])
-        print("B02", b[0][2])
         print(countframe)
         c1 = (b[0][0][0], b[0][0][1])
         c2 = (b[0][1][0], b[0][1][1])
         c3 = (b[0][2][0], b[0][2][1])
         c4 = (b[0][3][0], b[0][3][1])
-        x_sum = corners[0][0][0][0] + corners[0][0][1][0] + corners[0][0][2][0] + corners[0][0][3][0]
-        y_sum = corners[0][0][0][1] + corners[0][0][1][1] + corners[0][0][2][1] + corners[0][0][3][1]
-
-        x_centerPixel = x_sum * .25
-        y_centerPixel = y_sum * .25
-        new_row = {'Frame_NUMBER':countframe ,'markerID': ids[i],'Sampling_time': 0 ,'Top_left_corner': c1,'Top_right': c2,'Bottom_right': c3,'Bottom_left':c4}
+        centerX = (b[0][0][0] + b[0][1][0] + b[0][2][0] + b[0][3][0]) / 4
+        centerY = (b[0][0][1] + b[0][1][1] + b[0][2][1] + b[0][3][1]) / 4
+        center = (int(centerX), int(centerY))
+        inverservec, inversetvec = inversePerspective(rvec[i], tvec[i])
+        new_row = {'Frame_NUMBER': countframe, 'markerID': ids[i], 'Sampling_time': 0, 'Top_left_corner': c1,
+                   'Top_right': c2, 'Bottom_right': c3, 'Bottom_left': c4, 'x_center': centerX,'y_center': centerY,'marker_center': center,'translation_vector': tvec,'rotation_vector': rvec,'inverse_translation_vector': inversetvec ,'inverse_rotation_vector': inverservec }
         # append row to the dataframe
         frame_df = frame_df.append(new_row, ignore_index=True)
-        print(c1)
-        print(x_centerPixel)
-        print(y_centerPixel)
         cv2.line(frame, c1, c2, (0, 0, 255), 3)
         cv2.line(frame, c2, c3, (0, 255, 0), 3)
         cv2.line(frame, c3, c4, (0, 0, 255), 3)
@@ -190,12 +192,11 @@ while (True) :
         # rvet and tvec-different from camera coefficients
         (rvec - tvec).any()  # get rid of that nasty numpy value array error
 
-
         for i in range(0, ids.size):
             # draw axis for the aruco markers
             # Code to store Data in Data frame using pandas
             # marker_info = pd.DataFrame({'id': [id(i)], 'corners': [corners[i][0]]}, columns=['id', 'corners'])
-            aruco.drawAxis(frame, matrix_coefficients, distortion_coefficients, rvec[i], tvec[i], 0.04)
+            aruco.drawAxis(frame, matrix_coefficients, distortion_coefficients, rvec[i], tvec[i], 0.06)
 
         # draw a square around the markers
         aruco.drawDetectedMarkers(frame, corners)
@@ -220,4 +221,5 @@ while (True) :
 # When everything done, release the capture
 cap.release()
 cv2.destroyAllWindows()
-
+#When done Dataframe exported to excel sheet
+frame_df.to_excel('arucodata.xlsx')

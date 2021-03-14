@@ -125,21 +125,39 @@ markersize = 5
 # In the markerworld the 4 markercorners are at (x,y) = (+- markersize/2, +- markersize/2)
 # returns the rotated and translated corners and the rotation matrix
 def inversePerspective(rvec, tvec):
-    R, _ = cv2.Rodrigues(rvec)
-    R = np.matrix(R).T
-    invTvec = np.dot(R, np.matrix(-tvec))
+    R1, _ = cv2.Rodrigues(rvec)
+    R = np.matrix(R1).T
+    invTvec = np.dot(R, np.matrix(-tvec).T)
     invRvec, _ = cv2.Rodrigues(R)
     return invRvec, invTvec
+def relativePosition(rvec1, tvec1, rvec2, tvec2):
+    rvec1, tvec1 = rvec1.reshape((3, 1)), tvec1.reshape(
+        (3, 1))
+    rvec2, tvec2 = rvec2.reshape((3, 1)), tvec2.reshape((3, 1))
+
+    # Inverse the second marker, the right one in the image
+    invRvec, invTvec = inversePerspective(rvec2, tvec2)
+
+    orgRvec, orgTvec = inversePerspective(invRvec, invTvec)
+    # print("rvec: ", rvec2, "tvec: ", tvec2, "\n and \n", orgRvec, orgTvec)
+
+    info = cv2.composeRT(rvec1, tvec1, invRvec, invTvec)
+    composedRvec, composedTvec = info[0], info[1]
+
+    composedRvec = composedRvec.reshape((3, 1))
+    composedTvec = composedTvec.reshape((3, 1))
+    return composedRvec, composedTvec
 
 ###########
 countframe = 0
 frame_df = pd.DataFrame(
     columns=['Frame_NUMBER', 'markerID', 'Sampling_time', 'Top_left_corner', 'Top_right', 'Bottom_right',
-             'Bottom_left', 'x_center','y_center','marker_center','translation_vector','rotation_vector','inverse_translation_vector','inverse_rotation_vector'])
+             'Bottom_left', 'x_center','y_center','marker_center','translation_vector','rotation_vector','inverse_translation_vector','inverse_rotation_vector','Composed_rotation_vector','Composed_translation_vector'])
 cap = cv2.VideoCapture('ubicarcorner0.mp4')
-foto = cv2.imread('ubicarcornersfoto')
-while (countframe <= 53):
+while (True):
     ret, frame = cap.read()
+    if not ret:
+     break
     countframe += 1
 
     # operations on the frame
@@ -158,16 +176,10 @@ while (countframe <= 53):
                                                             cameraMatrix=matrix_coefficients,
                                                             distCoeff=distortion_coefficients)
     rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners, 0.1, matrix_coefficients, distortion_coefficients)
-    #inverservec,inversetvec = inversePerspective(rvec,tvec)
-    inverservec = 0
-    inversetvec = 0
+
     for (i, b) in enumerate(corners):
-        print(i, b, ids[i])
-        print("B0", b[0])
-        print("B00", b[0][0])
-        print("B01", b[0][1])
-        print("B02", b[0][2])
         print(countframe)
+        print(i, b, ids[i])
         c1 = (b[0][0][0], b[0][0][1])
         c2 = (b[0][1][0], b[0][1][1])
         c3 = (b[0][2][0], b[0][2][1])
@@ -175,8 +187,11 @@ while (countframe <= 53):
         centerX = (b[0][0][0] + b[0][1][0] + b[0][2][0] + b[0][3][0]) / 4
         centerY = (b[0][0][1] + b[0][1][1] + b[0][2][1] + b[0][3][1]) / 4
         center = (int(centerX), int(centerY))
+        inverservec, inversetvec = inversePerspective(rvec[i], tvec[i])
         new_row = {'Frame_NUMBER': countframe, 'markerID': ids[i], 'Sampling_time': 0, 'Top_left_corner': c1,
-                   'Top_right': c2, 'Bottom_right': c3, 'Bottom_left': c4, 'x_center': centerX,'y_center': centerY,'marker_center': center,'translation_vector': tvec,'rotation_vector': rvec,'inverse_translation_vector': inversetvec ,'inverse_rotation_vector': inverservec }
+                       'Top_right': c2, 'Bottom_right': c3, 'Bottom_left': c4, 'x_center': centerX, 'y_center': centerY,
+                       'marker_center': center, 'translation_vector': tvec[i], 'rotation_vector': rvec[i],
+                       'inverse_translation_vector': inversetvec, 'inverse_rotation_vector': inverservec,'Composed_rotation_vector': 0, 'Composed_translation_vector': 0}
         # append row to the dataframe
         frame_df = frame_df.append(new_row, ignore_index=True)
         cv2.line(frame, c1, c2, (0, 0, 255), 3)
@@ -204,7 +219,11 @@ while (countframe <= 53):
             # draw axis for the aruco markers
             # Code to store Data in Data frame using pandas
             # marker_info = pd.DataFrame({'id': [id(i)], 'corners': [corners[i][0]]}, columns=['id', 'corners'])
+
             aruco.drawAxis(frame, matrix_coefficients, distortion_coefficients, rvec[i], tvec[i], 0.06)
+        countcomposed = 0
+        #for j in range (1,ids.size):
+            #composedrvec, composedtvec = relativePosition(rvec(j - 1), tvec(j - 1), rvec(j), tvec(j))
 
         # draw a square around the markers
         aruco.drawDetectedMarkers(frame, corners)
@@ -229,3 +248,5 @@ while (countframe <= 53):
 # When everything done, release the capture
 cap.release()
 cv2.destroyAllWindows()
+#When done Dataframe exported to excel sheet
+frame_df.to_excel('arucodata.xlsx')
