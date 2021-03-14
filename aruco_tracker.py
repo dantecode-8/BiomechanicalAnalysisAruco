@@ -122,9 +122,9 @@ print(distCoeffs)
 # In the markerworld the 4 markercorners are at (x,y) = (+- markersize/2, +- markersize/2)
 # returns the rotated and translated corners and the rotation matrix
 def inversePerspective(rvec, tvec):
-    R, _ = cv2.Rodrigues(rvec)
-    R = np.matrix(R).T
-    invTvec = np.dot(R, np.matrix(-tvec))
+    R1, _ = cv2.Rodrigues(rvec)
+    R = np.matrix(R1).T
+    invTvec = np.dot(R, np.matrix(-tvec).T)
     invRvec, _ = cv2.Rodrigues(R)
     return invRvec, invTvec
 
@@ -132,8 +132,8 @@ def inversePerspective(rvec, tvec):
 countframe = 0
 frame_df = pd.DataFrame(
     columns=['Frame_NUMBER', 'markerID', 'Sampling_time', 'Top_left_corner', 'Top_right', 'Bottom_right',
-             'Bottom_left', 'x_center','y_center','marker_center','translation_vector','rotation_vector','inverse_translation_vector','inverse_rotation_vector'])
-cap = cv2.VideoCapture('ubicarcorner0.mp4')
+             'Bottom_left', 'x_center','y_center','marker_center','translation_vector','rotation_vector','inverse_translation_vector','inverse_rotation_vector','Composed_rotation_vector','Composed_translation_vector'])
+cap = cv2.VideoCapture('4markerz.mp4')
 while (True):
     ret, frame = cap.read()
     if not ret:
@@ -156,9 +156,10 @@ while (True):
                                                             cameraMatrix=matrix_coefficients,
                                                             distCoeff=distortion_coefficients)
     rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners, 0.1, matrix_coefficients, distortion_coefficients)
+
     for (i, b) in enumerate(corners):
-        print(i, b, ids[i])
         print(countframe)
+        print(i, b, ids[i])
         c1 = (b[0][0][0], b[0][0][1])
         c2 = (b[0][1][0], b[0][1][1])
         c3 = (b[0][2][0], b[0][2][1])
@@ -168,7 +169,9 @@ while (True):
         center = (int(centerX), int(centerY))
         inverservec, inversetvec = inversePerspective(rvec[i], tvec[i])
         new_row = {'Frame_NUMBER': countframe, 'markerID': ids[i], 'Sampling_time': 0, 'Top_left_corner': c1,
-                   'Top_right': c2, 'Bottom_right': c3, 'Bottom_left': c4, 'x_center': centerX,'y_center': centerY,'marker_center': center,'translation_vector': tvec,'rotation_vector': rvec,'inverse_translation_vector': inversetvec ,'inverse_rotation_vector': inverservec }
+                       'Top_right': c2, 'Bottom_right': c3, 'Bottom_left': c4, 'x_center': centerX, 'y_center': centerY,
+                       'marker_center': center, 'translation_vector': tvec[i], 'rotation_vector': rvec[i],
+                       'inverse_translation_vector': inversetvec, 'inverse_rotation_vector': inverservec,'Composed_rotation_vector': 0, 'Composed_translation_vector': 0}
         # append row to the dataframe
         frame_df = frame_df.append(new_row, ignore_index=True)
         cv2.line(frame, c1, c2, (0, 0, 255), 3)
@@ -196,7 +199,11 @@ while (True):
             # draw axis for the aruco markers
             # Code to store Data in Data frame using pandas
             # marker_info = pd.DataFrame({'id': [id(i)], 'corners': [corners[i][0]]}, columns=['id', 'corners'])
+
             aruco.drawAxis(frame, matrix_coefficients, distortion_coefficients, rvec[i], tvec[i], 0.06)
+        countcomposed = 0
+        #for j in range (1,ids.size):
+            #composedrvec, composedtvec = relativePosition(rvec(j - 1), tvec(j - 1), rvec(j), tvec(j))
 
         # draw a square around the markers
         aruco.drawDetectedMarkers(frame, corners)
