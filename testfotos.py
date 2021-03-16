@@ -114,7 +114,7 @@ inverservec = 0
 inversetvec = 0
 countframe = 0
 
-foto = cv2.imread('fourmarkergood.jpeg')
+foto = cv2.imread('camarafoto1.JPG')
 frame_df = pd.DataFrame(columns = ['Frame_NUMBER','markerID','Sampling_time','Top_left_corner','Top_right','Bottom_right','Bottom_left'])
 gray = cv2.cvtColor(foto, cv2.COLOR_BGR2GRAY)
 aruco_dict = aruco.Dictionary_get(aruco.DICT_6X6_250)

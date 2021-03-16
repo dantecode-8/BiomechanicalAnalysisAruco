@@ -39,7 +39,7 @@ objp[:, :2] = np.mgrid[0:CHESSBOARD_CORNERS_ROWCOUNT, 0:CHESSBOARD_CORNERS_COLCO
 # Need a set of images or a video taken with the camera you want to calibrate
 # I'm using a set of images taken with the camera with the naming convention:
 # 'camera-pic-of-chessboard-<NUMBER>.jpg'
-images = glob.glob('Chessboard[0-5].jpeg')
+images = glob.glob('Chessboard[6-9].JPG')
 # All images used should be the same size, which if taken with the same camera shouldn't be a problem
 imageSize = None  # Determined at runtime
 
@@ -153,7 +153,7 @@ countframe = 0
 frame_df = pd.DataFrame(
     columns=['Frame_NUMBER', 'markerID', 'Sampling_time', 'Top_left_corner', 'Top_right', 'Bottom_right',
              'Bottom_left', 'x_center','y_center','marker_center','translation_vector','rotation_vector','inverse_translation_vector','inverse_rotation_vector','Composed_rotation_vector','Composed_translation_vector'])
-cap = cv2.VideoCapture('4markerz.mp4')
+cap = cv2.VideoCapture('buscar13.mp4')
 while (True):
     ret, frame = cap.read()
     if not ret:
@@ -168,6 +168,7 @@ while (True):
 
     # detector parameters can be set here (List of detection parameters[3])
     parameters = aruco.DetectorParameters_create()
+    #adaptiveThreshConstant: constant for adaptive thresholding before finding contours (default 7)
     parameters.adaptiveThreshConstant = 10
 
     # lists of ids and the corners belonging to each id
@@ -175,7 +176,7 @@ while (True):
                                                             parameters=parameters,
                                                             cameraMatrix=matrix_coefficients,
                                                             distCoeff=distortion_coefficients)
-    rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners, 0.1, matrix_coefficients, distortion_coefficients)
+    rvec, tvec, _ = aruco.estimatePoseSingleMarkers(corners, 0.05, matrix_coefficients, distortion_coefficients)
 
     for (i, b) in enumerate(corners):
         print(countframe)
@@ -196,8 +197,8 @@ while (True):
         frame_df = frame_df.append(new_row, ignore_index=True)
         cv2.line(frame, c1, c2, (0, 0, 255), 3)
         cv2.line(frame, c2, c3, (0, 255, 0), 3)
-        cv2.line(frame, c3, c4, (0, 0, 255), 3)
-        cv2.line(frame, c4, c1, (0, 0, 255), 3)
+        cv2.line(frame, c3, c4, (255, 0, ), 3)
+        cv2.line(frame, c4, c1, (255, 255, 255), 3)
         x = int((c1[0] + c2[0] + c3[0] + c4[0]) / 4)
         y = int((c1[1] + c2[1] + c3[1] + c4[1]) / 4)
         frame = cv2.putText(frame, str(ids[i]), (x, y), cv2.FONT_HERSHEY_SIMPLEX,
