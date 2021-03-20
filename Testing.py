@@ -39,7 +39,7 @@ objp[:, :2] = np.mgrid[0:CHESSBOARD_CORNERS_ROWCOUNT, 0:CHESSBOARD_CORNERS_COLCO
 # Need a set of images or a video taken with the camera you want to calibrate
 # I'm using a set of images taken with the camera with the naming convention:
 # 'camera-pic-of-chessboard-<NUMBER>.jpg'
-images = glob.glob('Chessboard[6-9].JPG')
+images = glob.glob('Chessboard[5-8].JPG')
 # All images used should be the same size, which if taken with the same camera shouldn't be a problem
 imageSize = None  # Determined at runtime
 
@@ -62,7 +62,7 @@ for iname in images:
         corners_acc = cv2.cornerSubPix(
             image=gray,
             corners=corners,
-            winSize=(9, 6),
+            winSize=(11, 11),
             zeroZone=(-1, -1),
             criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30,
                       0.001))  # Last parameter is about termination critera
@@ -153,7 +153,7 @@ countframe = 0
 frame_df = pd.DataFrame(
     columns=['Frame_NUMBER', 'markerID', 'Sampling_time', 'Top_left_corner', 'Top_right', 'Bottom_right',
              'Bottom_left', 'x_center','y_center','marker_center','translation_vector','rotation_vector','inverse_translation_vector','inverse_rotation_vector','Composed_rotation_vector','Composed_translation_vector'])
-cap = cv2.VideoCapture('buscar13.mp4')
+cap = cv2.VideoCapture('pruebaz2mx10cm.mp4')
 while (True):
     ret, frame = cap.read()
     if not ret:
