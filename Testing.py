@@ -39,7 +39,7 @@ objp[:, :2] = np.mgrid[0:CHESSBOARD_CORNERS_ROWCOUNT, 0:CHESSBOARD_CORNERS_COLCO
 # Need a set of images or a video taken with the camera you want to calibrate
 # I'm using a set of images taken with the camera with the naming convention:
 # 'camera-pic-of-chessboard-<NUMBER>.jpg'
-images = glob.glob('Chessboard[5-8].JPG')
+images = glob.glob('Chessboard[0-9].jpg')
 # All images used should be the same size, which if taken with the same camera shouldn't be a problem
 imageSize = None  # Determined at runtime
 
@@ -153,7 +153,7 @@ countframe = 0
 frame_df = pd.DataFrame(
     columns=['Frame_NUMBER', 'markerID', 'Sampling_time', 'Top_left_corner', 'Top_right', 'Bottom_right',
              'Bottom_left', 'x_center','y_center','marker_center','translation_vector','rotation_vector','inverse_translation_vector','inverse_rotation_vector','Composed_rotation_vector','Composed_translation_vector'])
-cap = cv2.VideoCapture('pruebaz2mx10cm.mp4')
+cap = cv2.VideoCapture('buscarpixel0.mp4')
 while (True):
     ret, frame = cap.read()
     if not ret:
@@ -189,6 +189,16 @@ while (True):
         centerY = (b[0][0][1] + b[0][1][1] + b[0][2][1] + b[0][3][1]) / 4
         center = (int(centerX), int(centerY))
         inverservec, inversetvec = inversePerspective(rvec[i], tvec[i])
+        if i == 0 :
+            rvec1 = inverservec
+            tvec1 = inversetvec
+        if i == 1 :
+            rvec2 = inverservec
+            tvec2 = inversetvec
+        #composedRotationvec, composedTranlationvec = relativePosition(rvec[0], tvec[0], rvec[1], tvec[1])
+        #success, rotation_vector, translation_vector = cv2.solvePnP(objp, imgpoints, matrix_coefficients,distCoeffs, flags=cv2.cv2.SOLVEPNP_ITERATIVE)
+        #rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
+
         new_row = {'Frame_NUMBER': countframe, 'markerID': ids[i], 'Sampling_time': 0, 'Top_left_corner': c1,
                        'Top_right': c2, 'Bottom_right': c3, 'Bottom_left': c4, 'x_center': centerX, 'y_center': centerY,
                        'marker_center': center, 'translation_vector': tvec[i], 'rotation_vector': rvec[i],

@@ -1,130 +1,114 @@
-# System information:
-# - Linux Mint 18.1 Cinnamon 64-bit
-# - Python 2.7 with OpenCV 3.2.0
-# Resources:
-# - OpenCV-Python tutorial for calibration: http://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_calib3d/py_calibration/py_calibration.html
-#   - Variable names were changed for clarity
-
-import numpy as np
+"""
+This code assumes that images used for calibration are of the same arUco marker board provided with code
+"""
+https://github.com/abakisita/camera_calibration
 import cv2
-import pickle
-import glob
-
-# Create arrays you'll use to store object points and image points from all images processed
-
-
-objpoints = []  # 3D point in real world space where chess squares are
-imgpoints = []  # 2D point in image plane, determined by CV2
-
-# Chessboard variables
-CHESSBOARD_CORNERS_ROWCOUNT = 9
-CHESSBOARD_CORNERS_COLCOUNT = 6
-
-# Theoretical object points for the chessboard we're calibrating against,
-#
-#     (CHESSBOARD_CORNERS_ROWCOUNT-1, CHESSBOARD_CORNERS_COLCOUNT-1, 0)
-# Note that the Z value for all stays at 0, as this is a printed out 2D image
-# And also that the max point is -1 of the max because we're zero-indexing
-# The following line generates all the tuples needed at (0, 0, 0)
-objp = np.zeros((CHESSBOARD_CORNERS_ROWCOUNT * CHESSBOARD_CORNERS_COLCOUNT, 3), np.float32)
-# The following line fills the tuples just generated with their values (0, 0, 0), (1, 0, 0), ...
-objp[:, :2] = np.mgrid[0:CHESSBOARD_CORNERS_ROWCOUNT, 0:CHESSBOARD_CORNERS_COLCOUNT].T.reshape(-1, 2)
-
-# Need a set of images or a video taken with the camera you want to calibrate
-# I'm using a set of images taken with the camera with the naming convention:
-# 'camera-pic-of-chessboard-<NUMBER>.jpg'
-images = glob.glob('Chessboard[0-5].jpeg')
-# All images used should be the same size, which if taken with the same camera shouldn't be a problem
-imageSize = None  # Determined at runtime
-
-# Loop through images glob'ed
-for iname in images:
-    # Open the image
-    img = cv2.imread(iname)
-    # Grayscale the image
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    # Find chessboard in the image, setting PatternSize(2nd arg) to a tuple of (#rows, #columns)
-    board, corners = cv2.findChessboardCorners(gray, (CHESSBOARD_CORNERS_ROWCOUNT, CHESSBOARD_CORNERS_COLCOUNT), None)
-
-    # If a chessboard was found, let's collect image/corner points
-    if board == True:
-        # Add the points in 3D that we just discovered
-        objpoints.append(objp)
-
-        # Enhance corner accuracy with cornerSubPix
-        corners_acc = cv2.cornerSubPix(
-            image=gray,
-            corners=corners,
-            winSize=(11, 11),
-            zeroZone=(-1, -1),
-            criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30,
-                      0.001))  # Last parameter is about termination critera
-        imgpoints.append(corners_acc)
-
-        # If our image size is unknown, set it now
-        if not imageSize:
-            imageSize = gray.shape[::-1]
-
-        # Draw the corners to a new image to show whoever is performing the calibration
-        # that the board was properly detected
-        img = cv2.drawChessboardCorners(img, (CHESSBOARD_CORNERS_ROWCOUNT, CHESSBOARD_CORNERS_COLCOUNT), corners_acc,
-                                        board)
-        # Pause to display each image, waiting for key press
-        cv2.imshow('Chessboard', img)
-        cv2.waitKey(0)
-        cv2.imwrite('chessboardread1.jpeg', img)
-    else:
-        print("Not able to detect a chessboard in image: {}".format(iname))
-
-# Destroy any open CV windows
-cv2.destroyAllWindows()
-
-# Make sure at least one image was found
-if len(images) < 1:
-    # Calibration failed because there were no images, warn the user
-    print(
-        "Calibration was unsuccessful. No images of chessboards were found. Add images of chessboards and use or alter the naming conventions used in this file.")
-    # Exit for failure
-    exit()
-
-# Make sure we were able to calibrate on at least one chessboard by checking
-# if we ever determined the image size
-if not imageSize:
-    # Calibration failed because we didn't see any chessboards of the PatternSize used
-    print(
-        "Calibration was unsuccessful. We couldn't detect chessboards in any of the images supplied. Try changing the patternSize passed into findChessboardCorners(), or try different pictures of chessboards.")
-    # Exit for failure
-    exit()
-
-# Now that we've seen all of our images, perform the camera calibration
-# based on the set of points we've discovered
-calibration, cameraMatrix, distCoeffs, rvecs, tvecs = cv2.calibrateCamera(
-    objectPoints=objpoints,
-    imagePoints=imgpoints,
-    imageSize=imageSize,
-    cameraMatrix=None,
-    distCoeffs=None)
-
-# Print matrix and distortion coefficient to the console
-print(cameraMatrix)
-print(distCoeffs)
-
-# Save values to be used where matrix+dist is required, for instance for posture estimation
-# I save files in a pickle file, but you can use yaml or whatever works for you
-f = open('calibration.pckl', 'wb')
-pickle.dump((cameraMatrix, distCoeffs, rvecs, tvecs), f)
-f.close()
-cm = open('cameraMatrix.txt','wb')
-dq = open('distortionCoefficients.txt','wb')
+from cv2 import aruco
+import yaml
 import numpy as np
-np.savetxt('cameraMatrix.txt',  np.array(cameraMatrix),  fmt='%d')
-np.savetxt('distortionCoefficients.txt', np.array(distCoeffs), fmt='%d')
-cm.close()
-dq.close()
+from pathlib import Path
+from tqdm import tqdm
 
-import pandas as pd
-cam_df = pd.DataFrame({'Camera Matrix': cameraMatrix, 'Distortion Coefficients': distCoeffs}, index=)
+# root directory of repo for relative path specification.
+root = Path(__file__).parent.absolute()
 
-# Print to console our success
-print('Calibration successful. Calibration file used: {}'.format('calibration.pckl'))
+# Set this flsg True for calibrating camera and False for validating results real time
+calibrate_camera = True
+
+# Set path to the images
+calib_imgs_path = root.joinpath("aruco_data_board")
+
+# For validating results, show aruco board to camera.
+aruco_dict = aruco.getPredefinedDictionary( aruco.DICT_6X6_250 )
+
+#Provide length of the marker's side
+markerLength = 4  # Here, measurement unit is centimetre.
+
+# Provide separation between markers
+markerSeparation = 0.5   # Here, measurement unit is centimetre.
+
+# create arUco board
+board = aruco.GridBoard_create(4, 5, markerLength, markerSeparation, aruco_dict)
+
+'''uncomment following block to draw and show the board'''
+#img = board.draw((864,1080))
+#cv2.imshow("aruco", img)
+
+arucoParams = aruco.DetectorParameters_create()
+
+if calibrate_camera == True:
+    img_list = []
+    calib_fnms = calib_imgs_path.glob('*.jpg')
+    print('Using ...', end='')
+    for idx, fn in enumerate(calib_fnms):
+        print(idx, '', end='')
+        img = cv2.imread( str(root.joinpath(fn) ))
+        img_list.append( img )
+        h, w, c = img.shape
+    print('Calibration images')
+
+    counter, corners_list, id_list = [], [], []
+    first = True
+    for im in tqdm(img_list):
+        img_gray = cv2.cvtColor(im,cv2.COLOR_RGB2GRAY)
+        corners, ids, rejectedImgPoints = aruco.detectMarkers(img_gray, aruco_dict, parameters=arucoParams)
+        if first == True:
+            corners_list = corners
+            id_list = ids
+            first = False
+        else:
+            corners_list = np.vstack((corners_list, corners))
+            id_list = np.vstack((id_list,ids))
+        counter.append(len(ids))
+    print('Found {} unique markers'.format(np.unique(ids)))
+
+    counter = np.array(counter)
+    print ("Calibrating camera .... Please wait...")
+    #mat = np.zeros((3,3), float)
+    ret, mtx, dist, rvecs, tvecs = aruco.calibrateCameraAruco(corners_list, id_list, counter, board, img_gray.shape, None, None )
+
+    print("Camera matrix is \n", mtx, "\n And is stored in calibration.yaml file along with distortion coefficients : \n", dist)
+    data = {'camera_matrix': np.asarray(mtx).tolist(), 'dist_coeff': np.asarray(dist).tolist()}
+    with open("calibration.yaml", "w") as f:
+        yaml.dump(data, f)
+
+else:
+    camera = cv2.VideoCapture(0)
+    ret, img = camera.read()
+
+    with open('calibration.yaml') as f:
+        loadeddict = yaml.load(f)
+    mtx = loadeddict.get('camera_matrix')
+    dist = loadeddict.get('dist_coeff')
+    mtx = np.array(mtx)
+    dist = np.array(dist)
+
+    ret, img = camera.read()
+    img_gray = cv2.cvtColor(img,cv2.COLOR_RGB2GRAY)
+    h,  w = img_gray.shape[:2]
+    newcameramtx, roi=cv2.getOptimalNewCameraMatrix(mtx,dist,(w,h),1,(w,h))
+
+    pose_r, pose_t = [], []
+    while True:
+        ret, img = camera.read()
+        img_aruco = img
+        im_gray = cv2.cvtColor(img,cv2.COLOR_RGB2GRAY)
+        h,  w = im_gray.shape[:2]
+        dst = cv2.undistort(im_gray, mtx, dist, None, newcameramtx)
+        corners, ids, rejectedImgPoints = aruco.detectMarkers(dst, aruco_dict, parameters=arucoParams)
+        #cv2.imshow("original", img_gray)
+        if corners == None:
+            print ("pass")
+        else:
+
+            ret, rvec, tvec = aruco.estimatePoseBoard(corners, ids, board, newcameramtx, dist) # For a board
+            print ("Rotation ", rvec, "Translation", tvec)
+            if ret != 0:
+                img_aruco = aruco.drawDetectedMarkers(img, corners, ids, (0,255,0))
+                img_aruco = aruco.drawAxis(img_aruco, newcameramtx, dist, rvec, tvec, 10)    # axis length 100 can be changed according to your requirement
+
+            if cv2.waitKey(0) & 0xFF == ord('q'):
+                break;
+        cv2.imshow("World co-ordinate frame axes", img_aruco)
+
+cv2.destroyAllWindows()
