@@ -39,7 +39,7 @@ objp[:, :2] = np.mgrid[0:CHESSBOARD_CORNERS_ROWCOUNT, 0:CHESSBOARD_CORNERS_COLCO
 # Need a set of images or a video taken with the camera you want to calibrate
 # I'm using a set of images taken with the camera with the naming convention:
 # 'camera-pic-of-chessboard-<NUMBER>.jpg'
-images = glob.glob('Chessboard[0-9].jpg')
+images = glob.glob('Chessboard[0-8].jpg')
 # All images used should be the same size, which if taken with the same camera shouldn't be a problem
 imageSize = None  # Determined at runtime
 
@@ -117,7 +117,7 @@ distortion_coefficients = distCoeffs
 # Print matrix and distortion coefficient to the console
 print(cameraMatrix)
 print(distCoeffs)
-markersize = 5
+markersize = 10
 
 ###------------------ ARUCO TRACKER ---------------------------###
 # rotate a markers corners by rvec and translate by tvec if given
@@ -153,7 +153,7 @@ countframe = 0
 frame_df = pd.DataFrame(
     columns=['Frame_NUMBER', 'markerID', 'Sampling_time', 'Top_left_corner', 'Top_right', 'Bottom_right',
              'Bottom_left', 'x_center','y_center','marker_center','translation_vector','rotation_vector','inverse_translation_vector','inverse_rotation_vector','Composed_rotation_vector','Composed_translation_vector'])
-cap = cv2.VideoCapture('buscarpixel0.mp4')
+cap = cv2.VideoCapture('barraz80.mp4')
 while (True):
     ret, frame = cap.read()
     if not ret:
